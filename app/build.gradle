@@ -10,7 +10,7 @@ if (keystorePropsFile.exists()) {
 
 android {
     namespace 'com.local.qqbinding'
-    compileSdk 37
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.local.qqbinding'
