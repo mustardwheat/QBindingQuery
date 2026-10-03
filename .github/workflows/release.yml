@@ -1,0 +1,61 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK platform 37
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-37" "build-tools;36.0.0"
+
+      - name: Restore signing keystore
+        run: |
+          mkdir -p app/keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore/release.jks
+          {
+            echo "storeFile=keystore/release.jks"
+            echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+          } > keystore.properties
+
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          cp app/build/outputs/apk/release/app-release.apk "QBindingQuery-${TAG}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QBindingQuery-${{ github.ref_name }}
+          path: QBindingQuery-*.apk
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: QBindingQuery-*.apk
+          generate_release_notes: true
